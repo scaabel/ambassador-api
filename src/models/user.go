@@ -4,6 +4,6 @@ type User struct {
 	ID           uint
 	Name         string
 	Email        string
-	Password     string
+	Password     []byte
 	IsAmbassador bool
 }

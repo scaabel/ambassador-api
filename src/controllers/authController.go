@@ -96,7 +96,7 @@ func Login(c *fiber.Ctx) error {
 	if err != nil {
 		c.Status(fiber.StatusBadRequest)
 		return c.JSON(fiber.Map{
-			"message": "aaaa!",
+			"message": "Invalid credentials!",
 		})
 	}
 

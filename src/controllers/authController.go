@@ -1,10 +1,13 @@
 package controllers
 
 import (
+	"ambassador/src/config"
 	"ambassador/src/database"
 	"ambassador/src/models"
+	"time"
 
 	"github.com/gofiber/fiber/v2"
+	"github.com/golang-jwt/jwt"
 	"golang.org/x/crypto/bcrypt"
 )
 
@@ -80,5 +83,22 @@ func Login(c *fiber.Ctx) error {
 		})
 	}
 
-	return c.JSON(user)
+	token := jwt.New(jwt.SigningMethodHS256)
+
+	claims := token.Claims.(jwt.MapClaims)
+
+	claims["user_id"] = user.Id
+	claims["email"] = user.Email
+	claims["exp"] = time.Now().Add(time.Hour * 72).Unix()
+
+	t, err := token.SignedString([]byte(config.Config("JWT_SECRET")))
+
+	if err != nil {
+		c.Status(fiber.StatusBadRequest)
+		return c.JSON(fiber.Map{
+			"message": "aaaa!",
+		})
+	}
+
+	return c.JSON(fiber.Map{"status": "success", "message": "Success login", "data": t})
 }

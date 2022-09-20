@@ -45,3 +45,40 @@ func Register(ctx *fiber.Ctx) error {
 
 	return ctx.JSON(user)
 }
+
+func Login(c *fiber.Ctx) error {
+	var data map[string]string
+
+	if err := c.BodyParser(&data); err != nil {
+		return err
+	}
+
+	var user models.User
+
+	db, conErr := database.GetDatabaseConnection()
+
+	if conErr != nil {
+		c.Status(500)
+		return c.JSON(fiber.Map{
+			"message": "Service unavailable!",
+		})
+	}
+
+	db.Where("email = ?", data["email"]).First(&user)
+
+	if user.Id == 0 {
+		c.Status(fiber.StatusBadRequest)
+		return c.JSON(fiber.Map{
+			"message": "Invalid email or password!",
+		})
+	}
+
+	if err := bcrypt.CompareHashAndPassword(user.Password, []byte(data["password"])); err != nil {
+		c.Status(fiber.StatusBadRequest)
+		return c.JSON(fiber.Map{
+			"message": "Invalid email or password!",
+		})
+	}
+
+	return c.JSON(user)
+}

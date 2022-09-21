@@ -35,14 +35,7 @@ func Register(ctx *fiber.Ctx) error {
 
 	user.SetPassword(data["password"])
 
-	db, conErr := database.GetDatabaseConnection()
-
-	if conErr != nil {
-		ctx.Status(500)
-		return ctx.JSON(fiber.Map{
-			"message": "Service unavailable!",
-		})
-	}
+	db, _ := database.GetDatabaseConnection()
 
 	db.Create(&user)
 
@@ -58,11 +51,7 @@ func Login(c *fiber.Ctx) error {
 
 	var user *models.User
 
-	db, conErr := database.GetDatabaseConnection()
-
-	if conErr != nil {
-		return c.JSON(fiber.StatusInternalServerError)
-	}
+	db, _ := database.GetDatabaseConnection()
 
 	db.Where("email = ?", data["email"]).First(&user)
 
@@ -133,4 +122,56 @@ func Logout(c *fiber.Ctx) error {
 	c.Cookie(&cookie)
 
 	return c.JSON(fiber.Map{"message": "Success logout"})
+}
+
+func UpdateInfo(c *fiber.Ctx) error {
+	var data map[string]string
+
+	if err := c.BodyParser(&data); err != nil {
+		return err
+	}
+
+	id, _ := middlewares.GetUserId(c)
+
+	db, _ := database.GetDatabaseConnection()
+
+	user := models.User{
+		Id:    id,
+		Name:  data["name"],
+		Email: data["email"],
+	}
+
+	db.Model(&user).Updates(&user)
+
+	return c.JSON(&user)
+}
+
+func UpdatePassword(c *fiber.Ctx) error {
+	var data map[string]string
+
+	if err := c.BodyParser(&data); err != nil {
+		return err
+	}
+
+	if data["password"] != data["password_confirm"] {
+		c.Status(400)
+
+		return c.JSON(fiber.Map{
+			"message": "Password does not match!",
+		})
+	}
+
+	id, _ := middlewares.GetUserId(c)
+
+	db, _ := database.GetDatabaseConnection()
+
+	user := models.User{
+		Id: id,
+	}
+
+	user.SetPassword(data["password"])
+
+	db.Model(&user).Updates(&user)
+
+	return c.JSON(&user)
 }

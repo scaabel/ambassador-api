@@ -4,6 +4,7 @@ import (
 	"ambassador/src/config"
 	"ambassador/src/database"
 	"ambassador/src/models"
+	"strconv"
 	"time"
 
 	"github.com/gofiber/fiber/v2"
@@ -54,7 +55,7 @@ func Login(c *fiber.Ctx) error {
 		return err
 	}
 
-	var user models.User
+	var user *models.User
 
 	db, conErr := database.GetDatabaseConnection()
 
@@ -78,15 +79,12 @@ func Login(c *fiber.Ctx) error {
 		})
 	}
 
-	token := jwt.New(jwt.SigningMethodHS256)
+	payload := jwt.StandardClaims{
+		Subject:   strconv.Itoa(int(user.Id)),
+		ExpiresAt: time.Now().Add(time.Hour * 24).Unix(),
+	}
 
-	claims := token.Claims.(jwt.MapClaims)
-
-	claims["user_id"] = user.Id
-	claims["email"] = user.Email
-	claims["exp"] = time.Now().Add(time.Hour * 72).Unix()
-
-	t, err := token.SignedString([]byte(config.Config("JWT_SECRET")))
+	token, err := jwt.NewWithClaims(jwt.SigningMethodHS256, payload).SignedString([]byte(config.Config("JWT_SECRET")))
 
 	if err != nil {
 		c.Status(fiber.StatusBadRequest)
@@ -95,5 +93,43 @@ func Login(c *fiber.Ctx) error {
 		})
 	}
 
-	return c.JSON(fiber.Map{"status": "success", "message": "Success login", "data": t})
+	cookie := fiber.Cookie{
+		Name:     "jwt",
+		Value:    token,
+		Expires:  time.Now().Add(time.Hour * 24),
+		HTTPOnly: true,
+	}
+
+	c.Cookie(&cookie)
+
+	return c.JSON(fiber.Map{"message": "Success login"})
+}
+
+func User(c *fiber.Ctx) error {
+	cookie := c.Cookies("jwt")
+
+	token, err := jwt.ParseWithClaims(cookie, &jwt.StandardClaims{}, func(t *jwt.Token) (interface{}, error) {
+		return []byte(config.Config("JWT_SECRET")), nil
+	})
+
+	if err != nil || !token.Valid {
+		c.Status(fiber.StatusUnauthorized)
+		return c.JSON(fiber.Map{
+			"message": "Unauthenticated!",
+		})
+	}
+
+	payload := token.Claims.(*jwt.StandardClaims)
+
+	db, conErr := database.GetDatabaseConnection()
+
+	if conErr != nil {
+		return c.JSON(fiber.StatusInternalServerError)
+	}
+
+	var user *models.User
+
+	db.Where("id = ?", payload.Subject).First(&user)
+
+	return c.JSON(user)
 }

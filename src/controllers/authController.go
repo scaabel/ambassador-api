@@ -8,7 +8,6 @@ import (
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/golang-jwt/jwt"
-	"golang.org/x/crypto/bcrypt"
 )
 
 func Register(ctx *fiber.Ctx) error {
@@ -26,14 +25,13 @@ func Register(ctx *fiber.Ctx) error {
 		})
 	}
 
-	password, _ := bcrypt.GenerateFromPassword([]byte(data["password"]), 12)
-
 	user := models.User{
 		Name:         data["name"],
 		Email:        data["email"],
-		Password:     password,
 		IsAmbassador: false,
 	}
+
+	user.SetPassword(data["password"])
 
 	db, conErr := database.GetDatabaseConnection()
 
@@ -61,10 +59,7 @@ func Login(c *fiber.Ctx) error {
 	db, conErr := database.GetDatabaseConnection()
 
 	if conErr != nil {
-		c.Status(500)
-		return c.JSON(fiber.Map{
-			"message": "Service unavailable!",
-		})
+		return c.JSON(fiber.StatusInternalServerError)
 	}
 
 	db.Where("email = ?", data["email"]).First(&user)
@@ -76,7 +71,7 @@ func Login(c *fiber.Ctx) error {
 		})
 	}
 
-	if err := bcrypt.CompareHashAndPassword(user.Password, []byte(data["password"])); err != nil {
+	if err := user.CheckPassword(data["password"]); err != nil {
 		c.Status(fiber.StatusBadRequest)
 		return c.JSON(fiber.Map{
 			"message": "Invalid email or password!",

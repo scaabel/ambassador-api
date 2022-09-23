@@ -136,10 +136,11 @@ func UpdateInfo(c *fiber.Ctx) error {
 	db, _ := database.GetDatabaseConnection()
 
 	user := models.User{
-		Id:    id,
 		Name:  data["name"],
 		Email: data["email"],
 	}
+
+	user.Id = id
 
 	db.Model(&user).Updates(&user)
 
@@ -165,9 +166,9 @@ func UpdatePassword(c *fiber.Ctx) error {
 
 	db, _ := database.GetDatabaseConnection()
 
-	user := models.User{
-		Id: id,
-	}
+	user := models.User{}
+
+	user.Id = id
 
 	user.SetPassword(data["password"])
 

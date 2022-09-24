@@ -2,9 +2,6 @@ package database
 
 import (
 	"ambassador/src/models"
-	"fmt"
-
-	"ambassador/src/config"
 
 	"gorm.io/driver/mysql"
 	"gorm.io/gorm"
@@ -14,13 +11,7 @@ var dbConn *gorm.DB
 
 func GetDsn() string {
 
-	return fmt.Sprintf(
-		"%s@tcp(%s:%s)/%s",
-		config.Config("DB_USER"),
-		config.Config("DB_URL"),
-		config.Config("DB_PORT"),
-		config.Config("DB_NAME"),
-	)
+	return "root@tcp(db:3306)/ambassador"
 }
 
 func Connect() {

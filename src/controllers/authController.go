@@ -108,15 +108,17 @@ func Login(c *fiber.Ctx) error {
 func User(c *fiber.Ctx) error {
 	id, _ := middlewares.GetUserId(c)
 
-	db, conErr := database.GetDatabaseConnection()
+	db, _ := database.GetDatabaseConnection()
 
-	if conErr != nil {
-		return c.JSON(fiber.StatusInternalServerError)
-	}
-
-	var user *models.User
+	var user models.User
 
 	db.Where("id = ?", id).First(&user)
+
+	if strings.Contains(c.Path(), "/api/ambassador") {
+		ambassador := models.Ambassador(user)
+		ambassador.CalculateRevenue(db)
+		return c.JSON(ambassador)
+	}
 
 	return c.JSON(user)
 }

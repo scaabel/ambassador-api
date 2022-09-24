@@ -1,15 +1,13 @@
 package controllers
 
 import (
-	"ambassador/src/config"
 	"ambassador/src/database"
 	"ambassador/src/middlewares"
 	"ambassador/src/models"
-	"strconv"
+	"strings"
 	"time"
 
 	"github.com/gofiber/fiber/v2"
-	"github.com/golang-jwt/jwt"
 )
 
 func Register(ctx *fiber.Ctx) error {
@@ -30,7 +28,7 @@ func Register(ctx *fiber.Ctx) error {
 	user := models.User{
 		Name:         data["name"],
 		Email:        data["email"],
-		IsAmbassador: false,
+		IsAmbassador: strings.Contains(ctx.Path(), "/api/ambassador"),
 	}
 
 	user.SetPassword(data["password"])
@@ -69,12 +67,24 @@ func Login(c *fiber.Ctx) error {
 		})
 	}
 
-	payload := jwt.StandardClaims{
-		Subject:   strconv.Itoa(int(user.Id)),
-		ExpiresAt: time.Now().Add(time.Hour * 24).Unix(),
+	isAmbassador := strings.Contains(c.Path(), "/api/ambassador")
+
+	var scope string
+
+	scope = "admin"
+
+	if isAmbassador {
+		scope = "ambassador"
 	}
 
-	token, err := jwt.NewWithClaims(jwt.SigningMethodHS256, payload).SignedString([]byte(config.Config("JWT_SECRET")))
+	if !isAmbassador && user.IsAmbassador {
+		c.Status(fiber.StatusUnauthorized)
+		return c.JSON(fiber.Map{
+			"message": "Unauthorized!",
+		})
+	}
+
+	token, err := middlewares.GenerateJWT(user.Id, scope)
 
 	if err != nil {
 		c.Status(fiber.StatusBadRequest)

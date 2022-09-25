@@ -5,6 +5,7 @@ import (
 	"ambassador/src/models"
 	"context"
 	"encoding/json"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -142,6 +143,8 @@ func ProudctsBackend(c *fiber.Ctx) error {
 
 	var searchedProducts []models.Product
 
+	searchedProducts = products
+
 	if search := c.Query("search"); search != "" {
 		lowerCase := strings.ToLower(search)
 
@@ -150,9 +153,23 @@ func ProudctsBackend(c *fiber.Ctx) error {
 				searchedProducts = append(searchedProducts, product)
 			}
 		}
-
-		return c.JSON(searchedProducts)
 	}
 
-	return c.JSON(products)
+	if sortParam := c.Query("sort"); sortParam != "" {
+		sortLower := strings.ToLower(sortParam)
+
+		if sortLower == "asc" {
+			sort.Slice(searchedProducts, func(i, j int) bool {
+				return searchedProducts[i].Price < searchedProducts[j].Price
+			})
+		}
+
+		if sortLower == "desc" {
+			sort.Slice(searchedProducts, func(i, j int) bool {
+				return searchedProducts[j].Price < searchedProducts[i].Price
+			})
+		}
+	}
+
+	return c.JSON(searchedProducts)
 }

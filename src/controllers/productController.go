@@ -6,6 +6,7 @@ import (
 	"context"
 	"encoding/json"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/gofiber/fiber/v2"
@@ -103,8 +104,54 @@ func ProudctsFrontend(c *fiber.Ctx) error {
 		if errKey := database.Cache.Set(ctx, "products_frontend", bytes, 30*time.Minute).Err(); errKey != nil {
 			panic(errKey)
 		}
-	} else {
+	}
+
+	if result != "" {
 		json.Unmarshal([]byte(result), &products)
+	}
+
+	return c.JSON(products)
+}
+
+func ProudctsBackend(c *fiber.Ctx) error {
+
+	var products []models.Product
+	var ctx = context.Background()
+
+	result, err := database.Cache.Get(ctx, "products_backend").Result()
+
+	db, _ := database.GetDatabaseConnection()
+
+	if err != nil {
+		db.Find(&products)
+
+		bytes, err := json.Marshal(products)
+
+		if err != nil {
+			panic(err)
+		}
+
+		if errKey := database.Cache.Set(ctx, "products_backend", bytes, 30*time.Minute).Err(); errKey != nil {
+			panic(errKey)
+		}
+	}
+
+	if result != "" {
+		json.Unmarshal([]byte(result), &products)
+	}
+
+	var searchedProducts []models.Product
+
+	if search := c.Query("search"); search != "" {
+		lowerCase := strings.ToLower(search)
+
+		for _, product := range products {
+			if strings.Contains(strings.ToLower(product.Title), lowerCase) || strings.Contains(strings.ToLower(product.Description), lowerCase) {
+				searchedProducts = append(searchedProducts, product)
+			}
+		}
+
+		return c.JSON(searchedProducts)
 	}
 
 	return c.JSON(products)

@@ -3,7 +3,6 @@ package controllers
 import (
 	"ambassador/src/database"
 	"ambassador/src/models"
-	"context"
 	"encoding/json"
 	"sort"
 	"strconv"
@@ -33,6 +32,8 @@ func CreateProduct(c *fiber.Ctx) error {
 	db, _ := database.GetDatabaseConnection()
 
 	db.Create(&product)
+
+	go database.ClearCache("products_backend", "products_frontend")
 
 	return c.JSON(product)
 }
@@ -66,11 +67,12 @@ func UpdateProduct(c *fiber.Ctx) error {
 
 	db.Model(&product).Updates(&product)
 
+	go database.ClearCache("products_backend", "products_frontend")
+
 	return c.JSON(product)
 }
 
 func DeleteProduct(c *fiber.Ctx) error {
-
 	id, _ := strconv.Atoi(c.Params("id"))
 
 	product := models.Product{}
@@ -81,15 +83,15 @@ func DeleteProduct(c *fiber.Ctx) error {
 
 	db.Delete(&product)
 
+	go database.ClearCache("products_backend", "products_frontend")
+
 	return c.JSON(fiber.Map{"message": "Success"})
 }
 
 func ProudctsFrontend(c *fiber.Ctx) error {
-
 	var products []models.Product
-	var ctx = context.Background()
 
-	result, err := database.Cache.Get(ctx, "products_frontend").Result()
+	result, err := database.GetCache("products_frontend")
 
 	db, _ := database.GetDatabaseConnection()
 
@@ -102,7 +104,7 @@ func ProudctsFrontend(c *fiber.Ctx) error {
 			panic(err)
 		}
 
-		if errKey := database.Cache.Set(ctx, "products_frontend", bytes, 30*time.Minute).Err(); errKey != nil {
+		if errKey := database.SetCache("products_frontend", bytes, 30*time.Minute); errKey != nil {
 			panic(errKey)
 		}
 	}
@@ -115,11 +117,9 @@ func ProudctsFrontend(c *fiber.Ctx) error {
 }
 
 func ProudctsBackend(c *fiber.Ctx) error {
-
 	var products []models.Product
-	var ctx = context.Background()
 
-	result, err := database.Cache.Get(ctx, "products_backend").Result()
+	result, err := database.GetCache("products_backend")
 
 	db, _ := database.GetDatabaseConnection()
 
@@ -132,7 +132,7 @@ func ProudctsBackend(c *fiber.Ctx) error {
 			panic(err)
 		}
 
-		if errKey := database.Cache.Set(ctx, "products_backend", bytes, 30*time.Minute).Err(); errKey != nil {
+		if errKey := database.SetCache("products_backend", bytes, 30*time.Minute); errKey != nil {
 			panic(errKey)
 		}
 	}
